@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Generated Reports</h1>
+    <a href="{% url 'report-create' %}" class="btn btn-primary mb-3">
+        <i class="fas fa-plus"></i> New Report
+    </a>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Period</th>
+                <th>Generated On</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for report in reports %}
+            <tr>
+                <td>{{ report.title }}</td>
+                <td>{{ report.get_period_display }}</td>
+                <td>{{ report.generated_at|date:"Y-m-d H:i" }}</td>
+                <td>
+                    <a href="{% url 'report-pdf' report.pk %}" class="btn btn-sm btn-danger">
+                        <i class="fas fa-file-pdf"></i> PDF
+                    </a>
+                    <a href="{% url 'report-excel' report.pk %}" class="btn btn-sm btn-success">
+                        <i class="fas fa-file-excel"></i> Excel
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4">No reports generated yet.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

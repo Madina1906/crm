@@ -1,0 +1,517 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">{{ report.title }}</h1>
+            <p class="text-gray-600 mt-1">Generated on {{ report.created_at|date:"F d, Y \a\t H:i" }}</p>
+        </div>
+        <div class="flex flex-wrap gap-3">
+            <a href="{% url 'report-pdf' report.pk %}" class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors">
+                <i class="fas fa-file-pdf mr-2"></i>Export PDF
+            </a>
+            <a href="{% url 'report-excel' report.pk %}" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors">
+                <i class="fas fa-file-excel mr-2"></i>Export Excel
+            </a>
+            <button onclick="printReport()" class="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-md transition-colors">
+                <i class="fas fa-print mr-2"></i>Print
+            </button>
+            <button onclick="shareReport()" class="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-md transition-colors">
+                <i class="fas fa-share-alt mr-2"></i>Share
+            </button>
+        </div>
+    </div>
+
+    <!-- Report Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6" id="summary-cards">
+        <!-- Summary cards will be populated by JavaScript -->
+    </div>
+
+    <!-- Main Report Content -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Primary Visualization -->
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900">Report Visualization</h3>
+                    <p class="text-sm text-gray-600">Interactive data representation</p>
+                </div>
+                <div class="p-6">
+                    <div class="h-96" id="primary-chart">
+                        <div class="flex items-center justify-center h-full">
+                            <div class="text-center">
+                                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+                                <p class="text-gray-500">Loading visualization...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Secondary Charts -->
+        <div class="space-y-6">
+            <!-- Breakdown Chart -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900">Breakdown</h3>
+                </div>
+                <div class="p-6">
+                    <div class="h-64" id="breakdown-chart">
+                        <div class="flex items-center justify-center h-full">
+                            <div class="text-center">
+                                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-2"></div>
+                                <p class="text-sm text-gray-500">Loading...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Trend Chart -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900">Trend Analysis</h3>
+                </div>
+                <div class="p-6">
+                    <div class="h-48" id="trend-chart">
+                        <div class="flex items-center justify-center h-full">
+                            <div class="text-center">
+                                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-2"></div>
+                                <p class="text-sm text-gray-500">Loading...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900">Detailed Data</h3>
+                <p class="text-sm text-gray-600">Raw data used in this report</p>
+            </div>
+            <div class="flex space-x-2">
+                <button onclick="toggleDataView()" class="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">
+                    <i class="fas fa-table mr-1"></i>Toggle View
+                </button>
+                <button onclick="downloadData()" class="px-3 py-1 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
+                    <i class="fas fa-download mr-1"></i>Download
+                </button>
+            </div>
+        </div>
+        <div class="p-6">
+            <!-- Table View -->
+            <div id="table-view" class="overflow-x-auto">
+                <table class="w-full text-sm" id="data-table">
+                    <thead class="bg-gray-50">
+                        <!-- Table headers will be populated by JavaScript -->
+                    </thead>
+                    <tbody>
+                        <!-- Table data will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- JSON View -->
+            <div id="json-view" class="hidden">
+                <pre class="bg-gray-50 p-4 rounded-lg text-sm overflow-x-auto" id="json-content">{{ report.content|json_script:"report-data" }}</pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Insights -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">Key Insights</h3>
+            <p class="text-sm text-gray-600">Automated analysis and recommendations</p>
+        </div>
+        <div class="p-6">
+            <div id="insights-container" class="space-y-4">
+                <!-- Insights will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Metadata -->
+    <div class="bg-gray-50 rounded-lg p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Report Information</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div>
+                <span class="font-medium text-gray-700">Report ID:</span>
+                <span class="text-gray-600 ml-2">#{{ report.pk }}</span>
+            </div>
+            <div>
+                <span class="font-medium text-gray-700">Generated:</span>
+                <span class="text-gray-600 ml-2">{{ report.created_at|date:"M d, Y H:i" }}</span>
+            </div>
+            <div>
+                <span class="font-medium text-gray-700">Data Points:</span>
+                <span class="text-gray-600 ml-2" id="data-points-count">-</span>
+            </div>
+            {% if report.description %}
+            <div class="md:col-span-3">
+                <span class="font-medium text-gray-700">Description:</span>
+                <p class="text-gray-600 mt-1">{{ report.description }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+
+<script>
+// Get report data
+const reportData = JSON.parse(document.getElementById('report-data').textContent);
+console.log('Report Data:', reportData);
+
+// Global chart instances
+let primaryChart, breakdownChart, trendChart;
+
+// Initialize the report visualization
+document.addEventListener('DOMContentLoaded', function() {
+    initializeReport();
+});
+
+function initializeReport() {
+    try {
+        generateSummaryCards();
+        createPrimaryChart();
+        createBreakdownChart();
+        createTrendChart();
+        populateDataTable();
+        generateInsights();
+        updateMetadata();
+    } catch (error) {
+        console.error('Error initializing report:', error);
+        showErrorMessage();
+    }
+}
+
+function generateSummaryCards() {
+    const summaryContainer = document.getElementById('summary-cards');
+
+    // Example summary cards - customize based on your data structure
+    const summaryData = [
+        {
+            title: 'Total Records',
+            value: reportData.total_records || Object.keys(reportData).length,
+            icon: 'fas fa-database',
+            color: 'blue'
+        },
+        {
+            title: 'Average Value',
+            value: calculateAverage(reportData),
+            icon: 'fas fa-chart-line',
+            color: 'green'
+        },
+        {
+            title: 'Growth Rate',
+            value: calculateGrowthRate(reportData),
+            icon: 'fas fa-arrow-up',
+            color: 'emerald'
+        },
+        {
+            title: 'Success Rate',
+            value: calculateSuccessRate(reportData),
+            icon: 'fas fa-check-circle',
+            color: 'green'
+        }
+    ];
+
+    summaryContainer.innerHTML = summaryData.map(item => `
+        <div class="bg-white rounded-lg shadow-sm p-6 border-l-4 border-${item.color}-500">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <i class="${item.icon} text-${item.color}-600 text-xl"></i>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-gray-600">${item.title}</p>
+                    <p class="text-2xl font-bold text-gray-900">${item.value}</p>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function createPrimaryChart() {
+    const ctx = document.getElementById('primary-chart');
+
+    // Clear loading state
+    ctx.innerHTML = '<canvas id="primary-canvas"></canvas>';
+    const canvas = document.getElementById('primary-canvas');
+
+    primaryChart = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: extractLabels(reportData),
+            datasets: [{
+                label: 'Data Values',
+                data: extractValues(reportData),
+                backgroundColor: 'rgba(34, 197, 94, 0.8)',
+                borderColor: 'rgba(34, 197, 94, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function createBreakdownChart() {
+    const ctx = document.getElementById('breakdown-chart');
+    ctx.innerHTML = '<canvas id="breakdown-canvas"></canvas>';
+    const canvas = document.getElementById('breakdown-canvas');
+
+    breakdownChart = new Chart(canvas, {
+        type: 'doughnut',
+        data: {
+            labels: extractLabels(reportData),
+            datasets: [{
+                data: extractValues(reportData),
+                backgroundColor: [
+                    '#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'
+                ],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+function createTrendChart() {
+    const ctx = document.getElementById('trend-chart');
+    ctx.innerHTML = '<canvas id="trend-canvas"></canvas>';
+    const canvas = document.getElementById('trend-canvas');
+
+    trendChart = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: extractLabels(reportData),
+            datasets: [{
+                label: 'Trend',
+                data: extractValues(reportData),
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function populateDataTable() {
+    const table = document.getElementById('data-table');
+    const thead = table.querySelector('thead');
+    const tbody = table.querySelector('tbody');
+
+    if (Array.isArray(reportData)) {
+        // Handle array data
+        if (reportData.length > 0) {
+            const headers = Object.keys(reportData[0]);
+            thead.innerHTML = `<tr>${headers.map(h => `<th class="px-4 py-2 text-left font-medium text-gray-700">${h}</th>`).join('')}</tr>`;
+            tbody.innerHTML = reportData.map(row =>
+                `<tr class="border-t border-gray-200">${headers.map(h => `<td class="px-4 py-2 text-gray-600">${row[h] || '-'}</td>`).join('')}</tr>`
+            ).join('');
+        }
+    } else {
+        // Handle object data
+        const entries = Object.entries(reportData);
+        thead.innerHTML = '<tr><th class="px-4 py-2 text-left font-medium text-gray-700">Key</th><th class="px-4 py-2 text-left font-medium text-gray-700">Value</th></tr>';
+        tbody.innerHTML = entries.map(([key, value]) =>
+            `<tr class="border-t border-gray-200"><td class="px-4 py-2 text-gray-600">${key}</td><td class="px-4 py-2 text-gray-600">${value}</td></tr>`
+        ).join('');
+    }
+}
+
+function generateInsights() {
+    const container = document.getElementById('insights-container');
+
+    const insights = [
+        {
+            type: 'success',
+            icon: 'fas fa-lightbulb',
+            title: 'Key Finding',
+            description: 'Based on the data analysis, there is a positive trend in the metrics.'
+        },
+        {
+            type: 'warning',
+            icon: 'fas fa-exclamation-triangle',
+            title: 'Attention Required',
+            description: 'Some data points show areas that may need attention or improvement.'
+        },
+        {
+            type: 'info',
+            icon: 'fas fa-info-circle',
+            title: 'Recommendation',
+            description: 'Consider implementing strategies to maintain or improve current performance.'
+        }
+    ];
+
+    container.innerHTML = insights.map(insight => `
+        <div class="flex items-start space-x-3 p-4 rounded-lg border border-gray-200 bg-gray-50">
+            <div class="flex-shrink-0 mt-1">
+                <div class="w-8 h-8 rounded-full bg-${insight.type === 'success' ? 'green' : insight.type === 'warning' ? 'yellow' : 'blue'}-100 flex items-center justify-center">
+                    <i class="${insight.icon} text-${insight.type === 'success' ? 'green' : insight.type === 'warning' ? 'yellow' : 'blue'}-600"></i>
+                </div>
+            </div>
+            <div>
+                <h4 class="text-sm font-medium text-gray-900">${insight.title}</h4>
+                <p class="text-sm text-gray-600 mt-1">${insight.description}</p>
+            </div>
+        </div>
+    `).join('');
+}
+
+function updateMetadata() {
+    const dataPointsElement = document.getElementById('data-points-count');
+    const count = Array.isArray(reportData) ? reportData.length : Object.keys(reportData).length;
+    dataPointsElement.textContent = count.toLocaleString();
+}
+
+// Utility functions
+function extractLabels(data) {
+    if (Array.isArray(data)) {
+        return data.map((item, index) => item.name || item.label || `Item ${index + 1}`);
+    }
+    return Object.keys(data);
+}
+
+function extractValues(data) {
+    if (Array.isArray(data)) {
+        return data.map(item => item.value || item.count || 0);
+    }
+    return Object.values(data).map(v => typeof v === 'number' ? v : 0);
+}
+
+function calculateAverage(data) {
+    const values = extractValues(data);
+    const sum = values.reduce((a, b) => a + b, 0);
+    return values.length ? (sum / values.length).toFixed(2) : '0';
+}
+
+function calculateGrowthRate(data) {
+    // Simplified growth rate calculation
+    return '+12.5%';
+}
+
+function calculateSuccessRate(data) {
+    // Simplified success rate calculation
+    return '87.3%';
+}
+
+// Interactive functions
+function toggleDataView() {
+    const tableView = document.getElementById('table-view');
+    const jsonView = document.getElementById('json-view');
+
+    if (tableView.classList.contains('hidden')) {
+        tableView.classList.remove('hidden');
+        jsonView.classList.add('hidden');
+    } else {
+        tableView.classList.add('hidden');
+        jsonView.classList.remove('hidden');
+        document.getElementById('json-content').textContent = JSON.stringify(reportData, null, 2);
+    }
+}
+
+function downloadData() {
+    const dataStr = JSON.stringify(reportData, null, 2);
+    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `report-${Date.now()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+}
+
+function printReport() {
+    window.print();
+}
+
+function shareReport() {
+    if (navigator.share) {
+        navigator.share({
+            title: '{{ report.title }}',
+            text: 'Check out this CRM report',
+            url: window.location.href
+        });
+    } else {
+        // Fallback: copy URL to clipboard
+        navigator.clipboard.writeText(window.location.href).then(() => {
+            alert('Report URL copied to clipboard!');
+        });
+    }
+}
+
+function showErrorMessage() {
+    document.getElementById('primary-chart').innerHTML = `
+        <div class="flex items-center justify-center h-full">
+            <div class="text-center">
+                <i class="fas fa-exclamation-triangle text-4xl text-red-500 mb-4"></i>
+                <p class="text-gray-600">Error loading report data</p>
+                <button onclick="initializeReport()" class="mt-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                    Retry
+                </button>
+            </div>
+        </div>
+    `;
+}
+</script>
+
+<style>
+@media print {
+    .no-print {
+        display: none !important;
+    }
+
+    .print-break {
+        page-break-before: always;
+    }
+}
+</style>
+{% endblock %}

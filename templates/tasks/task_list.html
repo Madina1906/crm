@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h1 class="text-2xl font-bold text-gray-900">
+            {% if user.is_superuser or user.is_staff %}
+                All Tasks
+            {% else %}
+                Your Tasks
+            {% endif %}
+        </h1>
+        <a href="{% url 'task-create' %}" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors">
+            <i class="fas fa-plus mr-2"></i>Add New Task
+        </a>
+    </div>
+
+    <!-- Task Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-yellow-500">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-clock text-yellow-600 text-xl"></i>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-gray-600">Pending Tasks</p>
+                    <p class="text-lg font-bold text-gray-900">{{ pending_tasks_count|default:"0" }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-green-500">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-check-circle text-green-600 text-xl"></i>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-gray-600">Completed</p>
+                    <p class="text-lg font-bold text-gray-900">{{ completed_tasks_count|default:"0" }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-red-500">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-gray-600">Overdue</p>
+                    <p class="text-lg font-bold text-gray-900">{{ overdue_tasks_count|default:"0" }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-blue-500">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-calendar-day text-blue-600 text-xl"></i>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-gray-600">Due Today</p>
+                    <p class="text-lg font-bold text-gray-900">{{ today_tasks_count|default:"0" }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Form -->
+    <div class="bg-white rounded-lg shadow-sm p-4">
+        <form method="get" id="search-form" class="flex items-center space-x-4">
+            <div class="relative flex-1 max-w-md">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i class="fas fa-search text-gray-400"></i>
+                </div>
+                <input
+                    class="w-full pl-10 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    type="text"
+                    name="q"
+                    placeholder="Search tasks..."
+                    value="{{ request.GET.q }}"
+                >
+                <button type="button" id="clear-btn" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600" style="display: none;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <button class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors" type="submit">
+                <i class="fas fa-search mr-2"></i>Search
+            </button>
+        </form>
+    </div>
+
+    <!-- Tasks Table -->
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Task</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned To</th>
+                        {% if user.is_superuser or user.is_staff %}
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created By</th>
+                        {% endif %}
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for task in tasks %}
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-10 w-10">
+                                    <div class="h-10 w-10 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center">
+                                        <i class="fas fa-tasks text-white"></i>
+                                    </div>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-900">{{ task.title }}</div>
+                                    <div class="text-sm text-gray-500">Task #{{ task.id }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <i class="fas fa-calendar-alt mr-2 text-gray-400"></i>
+                                <div>
+                                    <div class="text-sm text-gray-900">{{ task.due_date|date:"d M Y" }}</div>
+                                    <div class="text-xs text-gray-500">{{ task.due_date|date:"H:i" }}</div>
+                                </div>
+                            </div>
+                            {% now "Y-m-d" as today %}
+                            {% if task.due_date|date:"Y-m-d" < today and not task.completed %}
+                                <div class="text-xs text-red-600 font-medium mt-1">
+                                    <i class="fas fa-exclamation-triangle mr-1"></i>Overdue
+                                </div>
+                            {% elif task.due_date|date:"Y-m-d" == today %}
+                                <div class="text-xs text-blue-600 font-medium mt-1">
+                                    <i class="fas fa-clock mr-1"></i>Due Today
+                                </div>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if task.completed %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    <i class="fas fa-check-circle mr-1"></i>Completed
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                    <i class="fas fa-clock mr-1"></i>Pending
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-8 w-8">
+                                    <div class="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
+                                        <i class="fas fa-user text-gray-600 text-sm"></i>
+                                    </div>
+                                </div>
+                                <div class="ml-3">
+                                    <div class="text-sm font-medium text-gray-900">{{ task.contact.name }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-8 w-8">
+                                    <div class="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                                        <span class="text-sm font-medium text-green-600">{{ task.assigned_to.username|slice:":1"|upper }}</span>
+                                    </div>
+                                </div>
+                                <div class="ml-3">
+                                    <div class="text-sm text-gray-900">{{ task.assigned_to.username }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        {% if user.is_superuser or user.is_staff %}
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-6 w-6">
+                                    <div class="h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center">
+                                        <span class="text-xs font-medium text-blue-600">{{ task.created_by.username|slice:":1"|upper }}</span>
+                                    </div>
+                                </div>
+                                <div class="ml-2">
+                                    <div class="text-sm text-gray-600">{{ task.created_by.username }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        {% endif %}
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                            <a href="{% url 'task-update' task.id %}" class="inline-flex items-center px-3 py-1 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                                <i class="fas fa-edit mr-1"></i>Edit
+                            </a>
+                            {% if not task.completed %}
+                            <button onclick="markComplete({{ task.id }})" class="inline-flex items-center px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors">
+                                <i class="fas fa-check mr-1"></i>Complete
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="{% if user.is_superuser or user.is_staff %}7{% else %}6{% endif %}" class="px-6 py-8 text-center text-gray-500">
+                            <div class="flex flex-col items-center">
+                                <i class="fas fa-tasks text-4xl text-gray-300 mb-4"></i>
+                                <p class="text-lg font-medium">No tasks found</p>
+                                <p class="text-sm">Get started by creating your first task</p>
+                                <a href="{% url 'task-create' %}" class="mt-4 inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors">
+                                    <i class="fas fa-plus mr-2"></i>Create Task
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Task Management Tips -->
+    <div class="bg-white rounded-lg shadow-sm p-6 border-l-4 border-green-500">
+        <h3 class="text-lg font-semibold text-gray-900 mb-3">Task Management Tips</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="flex items-start space-x-3">
+                <div class="flex-shrink-0 mt-1">
+                    <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                        <i class="fas fa-calendar-check text-blue-600"></i>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="text-sm font-medium text-gray-900">Set Realistic Deadlines</h4>
+                    <p class="text-xs text-gray-600">Allow adequate time for task completion and unexpected delays</p>
+                </div>
+            </div>
+            <div class="flex items-start space-x-3">
+                <div class="flex-shrink-0 mt-1">
+                    <div class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                        <i class="fas fa-users text-green-600"></i>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="text-sm font-medium text-gray-900">Clear Assignment</h4>
+                    <p class="text-xs text-gray-600">Assign tasks to specific team members with clear expectations</p>
+                </div>
+            </div>
+            <div class="flex items-start space-x-3">
+                <div class="flex-shrink-0 mt-1">
+                    <div class="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center">
+                        <i class="fas fa-bell text-yellow-600"></i>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="text-sm font-medium text-gray-900">Regular Follow-ups</h4>
+                    <p class="text-xs text-gray-600">Check progress regularly and provide support when needed</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Search functionality
+    const input = document.querySelector('input[name="q"]');
+    const clearBtn = document.getElementById('clear-btn');
+
+    function toggleClearButton() {
+        if (input.value.length > 0) {
+            clearBtn.style.display = 'block';
+        } else {
+            clearBtn.style.display = 'none';
+        }
+    }
+
+    input.addEventListener('input', toggleClearButton);
+
+    clearBtn.addEventListener('click', function() {
+        input.value = '';
+        clearBtn.style.display = 'none';
+        document.getElementById('search-form').submit();
+    });
+
+    toggleClearButton();
+});
+
+// Mark task as complete (you'll need to implement this endpoint)
+function markComplete(taskId) {
+    if (confirm('Mark this task as complete?')) {
+        // You can implement an AJAX call here or redirect to a completion endpoint
+        fetch(`/tasks/${taskId}/complete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => {
+            if (response.ok) {
+                location.reload();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error completing task. Please try again.');
+        });
+    }
+}
+</script>
+{% endblock %}
